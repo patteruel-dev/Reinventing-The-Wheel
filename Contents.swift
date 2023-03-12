@@ -19,6 +19,13 @@ struct PatInt: CustomStringConvertible {
         }
         isNegative = raw.contains(negativeSignRegex)
         var numberText = raw.trimmingPrefix(negativeSignRegex).trimmingPrefix(try! Regex(#"^0+"#))
+        if numberText.isEmpty {
+            wholeNumberDigits = [0]
+            decimalDigits = [0]
+            description = "0"
+            absolute = description
+            return
+        }
         if numberText.contains(try! Regex(#"\."#)) {
             numberText = numberText.replacing(try! Regex(#"0+$"#), with: "")
         } else {
@@ -26,7 +33,12 @@ struct PatInt: CustomStringConvertible {
         }
         let numberComponents = numberText.split(separator: ".")
         let wholeNumbersText = numberComponents[0] // this should be sure
-        let decimalText = numberComponents[1]
+        let decimalText: String
+        if numberComponents.count > 1 {
+            decimalText = String(numberComponents[1])
+        } else {
+            decimalText = "0"
+        }
         
         wholeNumberDigits = wholeNumbersText.compactMap({Int8(String($0))})
         decimalDigits = decimalText.compactMap({Int8(String($0))})
@@ -211,7 +223,66 @@ struct PatInt: CustomStringConvertible {
         }
         return PatInt(final)
     }
+    
+    static func *(lhs: PatInt, rhs: PatInt) -> PatInt {
+        let lWholeDigits = lhs.wholeNumberDigits
+        let rWholeDigits = rhs.wholeNumberDigits
+        let lDecimalDigits = lhs.decimalDigits
+        let rDecimalDigits = rhs.decimalDigits
+        let allDecimalCount = lDecimalDigits.count + rDecimalDigits.count
+        let allLDigits = [0] + lWholeDigits + lDecimalDigits
+        let allRDigits = [0] + rWholeDigits + rDecimalDigits
+        
+        
+        print("All R Digits = \(allRDigits)")
+        print("All L Digits = \(allLDigits)")
+        var rIdx = allRDigits.count - 1
+        var addableDigitsSet: [String] = []
+        while rIdx >= 0 {
+            let rDigit = allRDigits[rIdx]
+            
+            var lIdx = allLDigits.count - 1
+            var carried: Int8 = 0
+            var additionDigits: [Int8] = []
+            while lIdx >= 0 {
+                let lDigit = allLDigits[lIdx]
+                let res = lDigit * rDigit + carried
+                let lastDigit = res % 10
+                carried = res / 10
+                additionDigits.insert(lastDigit, at: 0)
+                lIdx -= 1
+            }
+            let iddx = allRDigits.count - 1 - rIdx
+            if iddx > 0 {
+                for _ in 0..<iddx {
+                    additionDigits.append(0)
+                }
+            }
+            print("\(allLDigits) * \(rDigit) = \(additionDigits)")
+            addableDigitsSet.append(additionDigits.map({"\($0)"}).joined())
+            rIdx -= 1
+        }
+        
+        var sum = PatInt("")
+        for addableDigit in addableDigitsSet {
+            print("sum: \(sum) + \(addableDigit)")
+            sum = sum + PatInt(addableDigit)
+        }
+        // fix decimal
+        var newDigits = sum.wholeNumberDigits
+        let decimalIdx = newDigits.count - allDecimalCount
+        let newWhole = newDigits[0..<decimalIdx]
+        let newDecimal = newDigits[decimalIdx..<newDigits.count]
+        
+        let isNegative = lhs.isNegative != rhs.isNegative
+        let finalText = (isNegative ? "-" : "") + newWhole.map {"\($0)"}.joined() + "." + newDecimal.map {"\($0)"}.joined()
+        print("Final Text: \(finalText)")
+        return PatInt(finalText)
+    }
 }
+
+let product: PatInt = PatInt("239.23") * PatInt("51.54")
+print("Result: \(product)")
 
 //print("P: \(PatInt("-0125"))")
 
@@ -230,7 +301,7 @@ struct PatInt: CustomStringConvertible {
 //let diff: PatInt = PatInt("135") - PatInt("6203")
 //print("Result: \(diff)")
 
-//var success = true
+var success = true
 //for _ in 0..<100 {
 //    let l = Double.random(in: -100...2000)
 //    let r = Double.random(in: -100...2000)
@@ -273,5 +344,28 @@ struct PatInt: CustomStringConvertible {
 //        print("PR = \(pr)")
 //    }
 //    print("------!-")
+//}
+
+//for _ in 0..<100 {
+//    let l = Int.random(in: -100...2000)
+//    let r = Int.random(in: -100...2000)
+//    let p = l * r
+//
+//    print("*!******")
+//    let pl = PatInt("\(l)")
+//    let pr = PatInt("\(r)")
+//    let pp: PatInt = pl * pr
+//
+//    let isEqual = "\(p)" == "\(pp)"
+//    success = success && isEqual
+//    print("\(p) == \(pp) ? \(isEqual)")
+//    if !isEqual {
+//        print("Debug:")
+//        print("L = \(l)")
+//        print("R = \(r)")
+//        print("PL = \(pl)")
+//        print("PR = \(pr)")
+//    }
+//    print("******!*")
 //}
 //print("All Succeeded? \(success)")
